@@ -3,9 +3,11 @@ function X0 = f_genobj_minist3D(Ny,Nx,Nz)
 
   load ./_Datasets/minist.mat
   
-  O_2d  = XTest(:,:,randi(size(XTest,3)));
+  O_2d  = XTest(:,:,randi(size(XTest,3)));  % range ~ [-1 1]
+  O_2d  = O_2d + 1;                         % range ~ [0 1]
   O_2d  = imresize(O_2d,[Ny Nx]);
-  O_2d  = O_2d - min(O_2d(:));
+  
+  O_2d(O_2d(:)<0) = 0;
   
 %   Ny  = size(O_2d,1);
 %   Nx  = size(O_2d,2);

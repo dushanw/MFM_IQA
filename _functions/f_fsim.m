@@ -1,22 +1,31 @@
 
-function fsimval = f_fsim(I1,I2)
+function fsimval = f_fsim(Ia,Ib)
 
-  points1 = detectHarrisFeatures(I1);
-  points2 = detectHarrisFeatures(I2);
+  [fa,da] = vl_sift(im2single(Ia)) ;
+  [fb,db] = vl_sift(im2single(Ib)) ;
+ 
+  [matches, scores] = vl_ubcmatch(da,db) ;
 
-  % Extract the neighborhood features.
-  [features1,valid_points1] = extractFeatures(I1,points1);
-  [features2,valid_points2] = extractFeatures(I2,points2);
+  [drop, perm] = sort(scores, 'descend') ;
+  matches = matches(:, perm) ;
+  scores  = scores(perm) ;
 
-  % Match the features.
-  indexPairs = matchFeatures(features1,features2);
+  figure ; clf ;
+  imagesc(cat(2, Ia, Ib)) ; colormap('hot')  
 
-  % Retrieve the locations of the corresponding points for each image.
-  matchedPoints1 = valid_points1(indexPairs(:,1),:);
-  matchedPoints2 = valid_points2(indexPairs(:,2),:);
+  xa = fa(1,matches(1,:)) ;
+  xb = fb(1,matches(2,:)) + size(Ia,2) ;
+  ya = fa(2,matches(1,:)) ;
+  yb = fb(2,matches(2,:)) ;
 
-  % Visualize the corresponding points. You can see the effect of translation between the two images despite several erroneous matches.
-  figure; showMatchedFeatures(I1,I2,matchedPoints1,matchedPoints2);
+  hold on ;
+  h = line([xa ; xb], [ya ; yb]) ;
+  set(h,'linewidth', 1, 'color', 'b') ;
+
+  vl_plotframe(fa(:,matches(1,:))) ;
+  fb(1,:) = fb(1,:) + size(Ia,2) ;
+  vl_plotframe(fb(:,matches(2,:))) ;
+  axis image off ;
 
   % FSIM value
   % < wtite the function for ssim value >

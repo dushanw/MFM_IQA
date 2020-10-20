@@ -1,9 +1,20 @@
 
 function fsimval = f_fsim(Ia,Ib)
 
-  [fa,da] = vl_sift(im2single(Ia)) ;
-  [fb,db] = vl_sift(im2single(Ib)) ;
+  Ib = imresize(Ib,size(Ia));
+
+  Ia = rescale(single(Ia));
+  Ib = rescale(single(Ib));
+  
+%   [fa,da] = vl_sift(single(Ia),'PeakThresh',0.01) ;
+%   [fb,db] = vl_sift(single(Ib),'PeakThresh',0.01) ;
  
+%   [fa,da] = vl_covdet(Ia, 'method', 'HarrisLaplace');
+%   [fb,db] = vl_covdet(Ib, 'method', 'HarrisLaplace');
+
+  [fa,da] = vl_covdet(Ia, 'EstimateAffineShape', true);
+  [fb,db] = vl_covdet(Ib, 'EstimateAffineShape', true);
+  
   [matches, scores] = vl_ubcmatch(da,db) ;
 
   [drop, perm] = sort(scores, 'descend') ;

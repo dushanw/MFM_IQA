@@ -4,6 +4,7 @@
 clear all;close all;clc;
 addpath(genpath('./_functions/'))
 addpath('./__toolboxes/vlfeat-0.9.21')
+addpath('./__toolboxes/imoverlay')
 
 %% Test IQAs (SSIM, PSNR, FSIM) in simulated rotations 
 Nx        = 128;
@@ -106,12 +107,36 @@ nexttile, imshowpair(max(DataReg.TF,[],3),max(Data.PS,[],3));                tit
 nexttile, imshowpair(histeq(max(DataReg.TF,[],3)),histeq(max(Data.PS,[],3)));title('overlay(eqHist)')
 set(tlo.Children,'XTick',[], 'YTick', [],'fontsize',16);
 
-ssim_sigma = 1;                                                     % run SSIM on the registered (and original) data   
-[ssimval_nn ,ssimmap_nn ] = ssim(Data.PS,Data.NN   ,'Radius',ssim_sigma);
-[ssimval_rnn,ssimmap_rnn] = ssim(Data.PS,DataReg.NN,'Radius',ssim_sigma);
+                                                                      % crop image to test ssim
+imshowpair(histeq(max(DataReg.TF,[],3)),histeq(max(Data.PS,[],3)));title('overlay(eqHist)')
+[temp rect]     = imcrop; 
+cropData.PS     = Data.PS   (rect(2):rect(2)+rect(4),rect(1):rect(1)+rect(3),:);
+cropData.NN     = Data.NN   (rect(2):rect(2)+rect(4),rect(1):rect(1)+rect(3),:);
+cropData.TF     = Data.TF   (rect(2):rect(2)+rect(4),rect(1):rect(1)+rect(3),:);
+cropDataReg.NN  = DataReg.NN(rect(2):rect(2)+rect(4),rect(1):rect(1)+rect(3),:);
+cropDataReg.TF  = DataReg.TF(rect(2):rect(2)+rect(4),rect(1):rect(1)+rect(3),:);
 
-[ssimval_tf ,ssimmap_tf ] = ssim(Data.PS,Data.TF   ,'Radius',ssim_sigma);
-[ssimval_rtf,ssimmap_rtf] = ssim(Data.PS,DataReg.TF,'Radius',ssim_sigma);
+subplot(1,2,1);imshowpair(histeq(max(cropDataReg.TF,[],3)),histeq(max(cropData.PS,[],3)));title('overlay(eqHist)')
+subplot(1,2,2);imshowpair(histeq(max(cropDataReg.NN,[],3)),histeq(max(cropData.PS,[],3)));title('overlay(eqHist)')
+
+ssim_sigma  = 1;                                                     % run SSIM on the registered (and original) data   
+[ssimval_nn ,ssimmap_nn ] = ssim(rescale(cropData.PS),rescale(cropData.NN)   ,'Radius',ssim_sigma);
+[ssimval_rnn,ssimmap_rnn] = ssim(rescale(cropData.PS),rescale(cropDataReg.NN),'Radius',ssim_sigma);
+
+[ssimval_tf ,ssimmap_tf ] = ssim(rescale(cropData.PS),rescale(cropData.TF)   ,'Radius',ssim_sigma);
+[ssimval_rtf,ssimmap_rtf] = ssim(rescale(cropData.PS),rescale(cropDataReg.TF),'Radius',ssim_sigma);
+
+pxval_th = 1;
+ssimval_th_rnn = mean(ssimmap_rnn(cropData.PS(:)>pxval_th));
+ssimval_th_rtf = mean(ssimmap_rtf(cropData.PS(:)>pxval_th));
+
+fprintf('SSIM no reg        : NN=%d, TF=%d\n', ssimval_nn,ssimval_tf  );
+fprintf('SSIM reg           : NN=%d, TF=%d\n', ssimval_rnn,ssimval_rtf);
+fprintf('SSIM reg + no bg   : NN=%d, TF=%d\n', ssimval_th_rnn,ssimval_th_rtf);
+
+figure;                                                             % plot ssim maps  
+subplot(1,2,1);imagesc(min(ssimmap_nn,[],3));axis image;axis off;colorbar;  title('SSIM NN'); set(gca,'fontsize',16);
+subplot(1,2,2);imagesc(min(ssimmap_tf,[],3));axis image;axis off;colorbar;  title('SSIM TF'); set(gca,'fontsize',16);
 
 figure;                                                             % plot ssim maps  
 subplot(1,2,1);imagesc(min(ssimmap_rnn,[],3));axis image;axis off;colorbar;  title('SSIM NN'); set(gca,'fontsize',16);

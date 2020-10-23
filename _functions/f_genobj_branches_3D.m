@@ -16,12 +16,12 @@ function X0 = f_genobj_branches_3D()
   Data0 = imds.readall();
   cd(of)
   
-  %% pad to make minimum size more than 16 (or 20) for the imreg algo
-  for i=1:length(Data0)
-    if size(Data0{i},3)<=20
-      Data0{i} = (padarray(Data0{i},[0 0 ceil((20-size(Data0{i},3))/2) ]));
-    end
-  end
+%   %% pad to make minimum size more than 16 (or 20) for the imreg algo
+%   for i=1:length(Data0)
+%     if size(Data0{i},3)<=20
+%       Data0{i} = (padarray(Data0{i},[0 0 ceil((20-size(Data0{i},3))/2) ]));
+%     end
+%   end
 
   %% resize TF and NN to match PS pixel size
   for i=1:length(Data0)/3
@@ -32,7 +32,13 @@ function X0 = f_genobj_branches_3D()
     X0{i}.NN  = imresize(X0{i}.NN,dx_tf/dx_ps);
     X0{i}.TF  = imresize(X0{i}.TF,dx_tf/dx_ps);
     
-%   [i size(X0{i}.PS,1) size(X0{i}.TF,1) size(X0{i}.NN,1)]
+    X0{i}.NN  = imresize3(X0{i}.NN,[size(X0{i}.NN,1) size(X0{i}.NN,2) size(X0{i}.NN,3)*dz_tf/dx_ps]);
+    X0{i}.PS  = imresize3(X0{i}.PS,[size(X0{i}.PS,1) size(X0{i}.PS,2) size(X0{i}.PS,3)*dz_tf/dx_ps]);
+    X0{i}.TF  = imresize3(X0{i}.TF,[size(X0{i}.TF,1) size(X0{i}.TF,2) size(X0{i}.TF,3)*dz_tf/dx_ps]);
+    
+%    [i size(X0{i}.PS,1) size(X0{i}.TF,1) size(X0{i}.NN,1)]
+%    [i size(X0{i}.PS,2) size(X0{i}.TF,2) size(X0{i}.NN,2)]    
+%    [i size(X0{i}.PS,3) size(X0{i}.TF,3) size(X0{i}.NN,3)]    
   end 
   
   %% rotate branches to make them straight
@@ -78,8 +84,9 @@ function X0 = f_genobj_branches_3D()
 %     subplot(2,3,5);imagesc(max(X0{i}.TF,[],3));                         axis image
 %     subplot(2,3,6);imagesc(max(X0{i}.NN,[],3));                         axis image
 
-%   [i size(X0{i}.PS,1) size(X0{i}.TF,1) size(X0{i}.NN,1)]
-%   [i size(X0{i}.PS,2) size(X0{i}.TF,2) size(X0{i}.NN,2)]    
+%    [i size(X0{i}.PS,1) size(X0{i}.TF,1) size(X0{i}.NN,1)]
+%    [i size(X0{i}.PS,2) size(X0{i}.TF,2) size(X0{i}.NN,2)]    
+%    [i size(X0{i}.PS,3) size(X0{i}.TF,3) size(X0{i}.NN,3)]    
   end
   
 end

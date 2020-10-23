@@ -5,10 +5,11 @@ X0 = f_genobj_branches_3D;
 
 %% register volumes
 [optimizer,metric]          = imregconfig('multimodal');              % 3d registration
-optimizer.MaximumIterations = 100;
+optimizer.MaximumIterations = 2000;
 optimizer.InitialRadius     = 1e-4;
 delta                       = 0;                                      % for cropping later
 
+tic
 XReg = cell(1,13);
 parfor i=1:length(X0)
   i
@@ -19,11 +20,16 @@ parfor i=1:length(X0)
 %   X0{i}.PS     = imresize3(X0{i}.PS,size(X0{i}.NN));                  % using 3d im resize; changes the aspect ratios.     
 %   X0{i}.TF     = imresize3(X0{i}.TF,size(X0{i}.NN));
                                                      
-  XReg{i}.NN  = imregister(X0{i}.NN+delta,X0{i}.PS,'similarity',optimizer,metric,'DisplayOptimization',0);
-  XReg{i}.TF  = imregister(X0{i}.TF+delta,X0{i}.PS,'similarity',optimizer,metric,'DisplayOptimization',0);
+  XReg{i}.NN  = imregister(X0{i}.NN+delta,X0{i}.PS,'affine',optimizer,metric,'DisplayOptimization',0);
+  XReg{i}.TF  = imregister(X0{i}.TF+delta,X0{i}.PS,'affine',optimizer,metric,'DisplayOptimization',0);
 end
+toc
+save('X0_XReg.mat','X0','XReg');
 
 %% plot registration and calculate ssim values
+resultsDir = sprintf('./__results/%s/',datetime);
+mkdir(resultsDir)
+
 for i=1:length(X0)
   Data.PS = X0{i}.PS;    
   Data.NN = imresize3(X0{i}.NN,size(Data.PS));
@@ -51,7 +57,7 @@ for i=1:length(X0)
   nexttile, imshowpair(max(DataReg.NN,[],3),max(Data.PS,[],3));                title('overlay')
   nexttile, imshowpair(histeq(max(DataReg.NN,[],3)),histeq(max(Data.PS,[],3)));title('overlay(eqHist)')
   set(tlo.Children,'XTick',[], 'YTick', [],'fontsize',20);
-  saveas(gcf,sprintf('./__results/reg_nn_branch_%d.png',i));
+  saveas(gcf,sprintf('%s/reg_nn_branch_%d.png',resultsDir,i));
 
   figure('units','normalized','outerposition',[0 0 1 1])                % visualize TF registartion for the figure 
   tlo = tiledlayout(2,4,'TileSpacing','none','Padding','none');
@@ -64,7 +70,7 @@ for i=1:length(X0)
   nexttile, imshowpair(max(DataReg.TF,[],3),max(Data.PS,[],3));                title('overlay')
   nexttile, imshowpair(histeq(max(DataReg.TF,[],3)),histeq(max(Data.PS,[],3)));title('overlay(eqHist)')
   set(tlo.Children,'XTick',[], 'YTick', [],'fontsize',16);
-  saveas(gcf,sprintf('./__results/reg_tf_branch_%d.png',i));
+  saveas(gcf,sprintf('%s/reg_tf_branch_%d.png',resultsDir,i));
 
   ssim_sigma = 3;                                                     % run SSIM on the registered data   
   [ssimval_rnn(i),ssimmap_rnn] = ssim(rescale(Data.PS),rescale(DataReg.NN),'Radius',ssim_sigma);
@@ -95,7 +101,7 @@ for i=1:length(X0)
   nexttile, imagesc(min(ssimmap_m3_rtf{1},[],3));axis image;axis off;colorbar;  title('SSIM-map TF');
   nexttile, imshowpair(max(Data.PS,[],3), min(ssimmap_m3_rtf{1},[],3));         title('overlay with PS');  
   set(tlo.Children,'fontsize',16);
-  saveas(gcf,sprintf('./__results/ssim-maps_branch_%d.png',i));
+  saveas(gcf,sprintf('%s/ssim-maps_branch_%d.png',resultsDir,i));
 
   close all 
 end
@@ -137,7 +143,7 @@ ylabel('mean SSIM value [AU]')
 legend({'TF','NN'})
 set(gca,'fontsize',16);
 
-saveas(gcf,sprintf('./__results/ssim-barplot_branches_%s.png',datetime))
+saveas(gcf,sprintf('%s/ssim-barplot_branches_%s.png',resultsDir,datetime))
 
 
 

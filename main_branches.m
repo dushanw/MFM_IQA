@@ -24,11 +24,13 @@ parfor i=1:length(X0)
   XReg{i}.TF  = imregister(X0{i}.TF+delta,X0{i}.PS,'affine',optimizer,metric,'DisplayOptimization',0);
 end
 toc
-save('X0_XReg.mat','X0','XReg');
+
 
 %% plot registration and calculate ssim values
 resultsDir = sprintf('./__results/%s/',datetime);
 mkdir(resultsDir)
+
+save([resultsDir 'X0_XReg.mat','X0','XReg']);
 
 for i=1:length(X0)
   Data.PS = X0{i}.PS;    
@@ -72,7 +74,7 @@ for i=1:length(X0)
   set(tlo.Children,'XTick',[], 'YTick', [],'fontsize',16);
   saveas(gcf,sprintf('%s/reg_tf_branch_%d.png',resultsDir,i));
 
-  ssim_sigma = 3;                                                     % run SSIM on the registered data   
+  ssim_sigma = 1.5;                                                     % run SSIM on the registered data   
   [ssimval_rnn(i),ssimmap_rnn] = ssim(rescale(Data.PS),rescale(DataReg.NN),'Radius',ssim_sigma);
   [ssimval_rtf(i),ssimmap_rtf] = ssim(rescale(Data.PS),rescale(DataReg.TF),'Radius',ssim_sigma);
   [ssimval_nn(i) ,ssimmap_nn ] = ssim(rescale(Data.PS),rescale(Data.NN),'Radius',ssim_sigma);

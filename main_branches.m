@@ -1,51 +1,45 @@
 clc; clear all; close all
 
-%% read and preprocess
-of = cd('_Datasets/CroppedBranches_scarletCell/');
-imds = imageDatastore('./',...
-                      'IncludeSubfolders',1,...
-                      'FileExtensions','.tif',...
-                      'ReadFcn',@f_readDataset);                         
-Data0 = imds.readall();
-cd(of)
-for i=1:length(Data0)
-  [i size(Data0{i},3)]
-  if size(Data0{i},3)<=16
-    Data0{i} = (padarray(Data0{i},[0 0 ceil((16-size(Data0{i},3))/2) ]));
-  end
-end
+%% read data
+X0 = f_genobj_branches_3D;
 
-%% registration
-[optimizer,metric]          = imregconfig('multimodal');            % 3d registration
-optimizer.MaximumIterations = 500;
+%% register volumes
+[optimizer,metric]          = imregconfig('multimodal');              % 3d registration
+optimizer.MaximumIterations = 100;
 optimizer.InitialRadius     = 1e-4;
-delta                       = 0;                                    % for cropping later
+delta                       = 0;                                      % for cropping later
 
-DataAll     = cell(1,13);
-DataRegAll  = cell(1,13);
-parfor i=1:length(Data0)/3
+XReg = cell(1,13);
+parfor i=1:length(X0)
   i
-  DataAll{i}.NN     = Data0{(i-1)*3+1};
-  DataAll{i}.PS     = Data0{(i-1)*3+2};
-  DataAll{i}.TF     = Data0{(i-1)*3+3};
-  
-  DataAll{i}.PS     = imresize3(DataAll{i}.PS,size(DataAll{i}.NN));    
-  DataAll{i}.TF     = imresize3(DataAll{i}.TF,size(DataAll{i}.NN));
-                                                     % for cropping later
-  DataRegAll{i}.NN  = imregister(DataAll{i}.NN+delta,DataAll{i}.PS,'similarity',optimizer,metric,'DisplayOptimization',0);
-  DataRegAll{i}.TF  = imregister(DataAll{i}.TF+delta,DataAll{i}.PS,'similarity',optimizer,metric,'DisplayOptimization',0);
+                                                                    
+%   X0{i}.PS = imresize(X0{i}.PS,max(size(X0{i}.NN)./size(X0{i}.PS)));  % using the 2d-im resize; preserves the aspect ratios
+%   X0{i}.TF = imresize(X0{i}.TF,max(size(X0{i}.NN)./size(X0{i}.TF)));
+% 
+%   X0{i}.PS     = imresize3(X0{i}.PS,size(X0{i}.NN));                  % using 3d im resize; changes the aspect ratios.     
+%   X0{i}.TF     = imresize3(X0{i}.TF,size(X0{i}.NN));
+                                                     
+  XReg{i}.NN  = imregister(X0{i}.NN+delta,X0{i}.PS,'similarity',optimizer,metric,'DisplayOptimization',0);
+  XReg{i}.TF  = imregister(X0{i}.TF+delta,X0{i}.PS,'similarity',optimizer,metric,'DisplayOptimization',0);
 end
 
-tic
-for i=1:length(Data0)/3
-  
-  Data.NN = DataAll{i}.NN;
-  Data.PS = DataAll{i}.PS;
-  Data.TF = DataAll{i}.TF;
-  
-  DataReg.NN  = DataRegAll{i}.NN;
-  DataReg.TF  = DataRegAll{i}.TF;
+%% plot registration and calculate ssim values
+for i=1:length(X0)
+  Data.PS = X0{i}.PS;    
+  Data.NN = imresize3(X0{i}.NN,size(Data.PS));
+  Data.TF = imresize3(X0{i}.TF,size(Data.PS));
 
+  DataReg.NN  = XReg{i}.NN;
+  DataReg.TF  = XReg{i}.TF;
+
+  if size(Data.NN,2)>size(Data.NN,1)
+    Data.NN     = permute(Data.NN   ,[2 1 3]);
+    Data.PS     = permute(Data.PS   ,[2 1 3]);
+    Data.TF     = permute(Data.TF   ,[2 1 3]);
+    DataReg.NN  = permute(DataReg.NN,[2 1 3]);
+    DataReg.TF  = permute(DataReg.TF,[2 1 3]);
+  end  
+  
   figure('units','normalized','outerposition',[0 0 1 1])                % visualize NN registartion for the figure 
   tlo = tiledlayout(2,4,'TileSpacing','none','Padding','none');
   nexttile, imagesc   (max(Data.PS,[],3));axis image;axis off;                 title('PS')
@@ -72,14 +66,14 @@ for i=1:length(Data0)/3
   set(tlo.Children,'XTick',[], 'YTick', [],'fontsize',16);
   saveas(gcf,sprintf('./__results/reg_tf_branch_%d.png',i));
 
-  ssim_sigma = 1.5;                                                     % run SSIM on the registered data   
+  ssim_sigma = 3;                                                     % run SSIM on the registered data   
   [ssimval_rnn(i),ssimmap_rnn] = ssim(rescale(Data.PS),rescale(DataReg.NN),'Radius',ssim_sigma);
   [ssimval_rtf(i),ssimmap_rtf] = ssim(rescale(Data.PS),rescale(DataReg.TF),'Radius',ssim_sigma);
   [ssimval_nn(i) ,ssimmap_nn ] = ssim(rescale(Data.PS),rescale(Data.NN),'Radius',ssim_sigma);
   [ssimval_tf(i) ,ssimmap_tf ] = ssim(rescale(Data.PS),rescale(Data.TF),'Radius',ssim_sigma);
 
   pxval_th      = -1;% to remove bg regions
-  pxval_th_reg  = 0;% to remove bg regions after registration    
+  pxval_th_reg  =  0;% to remove bg regions after registration    
   fg_inds_rnn   = (Data.PS(:)>pxval_th | DataReg.NN(:)>pxval_th) & DataReg.NN(:)>0;
   fg_inds_rtf   = (Data.PS(:)>pxval_th | DataReg.TF(:)>pxval_th) & DataReg.TF(:)>0;
   ssimval_th_rnn(i) = mean(ssimmap_rnn(fg_inds_rnn));
@@ -89,9 +83,6 @@ for i=1:length(Data0)/3
   [ssimval_m3_rtf(i),ssimmap_m3_rtf] = multissim3(rescale(Data.PS),rescale(DataReg.TF),'Sigma',ssim_sigma);
   [ssimval_m3_nn(i) ,ssimmap_m3_nn ] = multissim3(rescale(Data.PS),rescale(Data.NN)   ,'Sigma',ssim_sigma);
   [ssimval_m3_tf(i) ,ssimmap_m3_tf ] = multissim3(rescale(Data.PS),rescale(Data.TF)   ,'Sigma',ssim_sigma);
-
-  score = multissim3(rescale(Data.PS),rescale(DataReg.TF));
-  score = multissim3(rescale(Data.PS),rescale(DataReg.NN));
   
   figure('units','normalized','outerposition',[0 0 1 1])               % visualize ssim-maps for the figure  
   tlo = tiledlayout(2,4,'TileSpacing','none','Padding','none');
@@ -108,7 +99,7 @@ for i=1:length(Data0)/3
 
   close all 
 end
-toc
+
 
 figure('units','normalized','outerposition',[0 0 1 1])          
 ylim([0 1])
